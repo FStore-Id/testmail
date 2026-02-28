@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempMail Pro - Auto Save</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .word-wrap-fix {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+        #detailBody { 
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+        #detailBody a { color: #2563eb; text-decoration: underline; }
+        #detailBody img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+        /* Toast notification */
+        #toast {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0;
+            transform: translateY(1rem);
+            pointer-events: none;
+        }
+        #toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        /* Dropdown menu */
+        #menuDropdown {
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform-origin: top right;
+        }
+        #menuDropdown:not(.hidden) {
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* Style untuk input disabled */
+        input:disabled, select:disabled {
+            background-color: #f1f5f9;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans min-h-screen">
+    
+    <!-- Toast container -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 max-w-[90%] sm:max-w-md"></div>
+
+    <nav class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <!-- Logo FStore di kiri, lebih besar -->
+            <div class="flex items-center gap-2">
+                <img src="logo.png" alt="FStore" class="h-12 w-auto">
+            </div>
+            <!-- Hamburger button (ikon ☰) -->
+            <div class="relative">
+                <button id="menuButton" class="focus:outline-none p-2 hover:bg-slate-100 rounded-lg transition">
+                    <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <!-- Dropdown menu -->
+                <div id="menuDropdown" class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 hidden z-20">
+                    <div class="p-2">
+                        <a href="https://toko-fstore.netlify.app/" target="_blank" class="block px-4 py-3 text-slate-700 hover:bg-blue-50 rounded-lg transition font-medium">🛒 Toko FStore Official</a>
+                        <a href="https://2fa-fstore.netlify.app/" target="_blank" class="block px-4 py-3 text-slate-700 hover:bg-blue-50 rounded-lg transition font-medium">🔐 2FA Online</a>
+                        <div class="border-t my-2"></div>
+                        <p class="px-4 py-1 text-xs text-slate-500 font-semibold">Media Sosial</p>
+                        <a href="https://wa.me/6285133334542?text=hallo%20admin%20FStore%20Official" target="_blank" class="block px-4 py-3 text-slate-700 hover:bg-blue-50 rounded-lg transition font-medium flex items-center gap-2">
+                            <span class="text-green-600">📱</span> WhatsApp
+                        </a>
+                        <a href="https://x.com/F_StoreOfficial" target="_blank" class="block px-4 py-3 text-slate-700 hover:bg-blue-50 rounded-lg transition font-medium flex items-center gap-2">
+                            <span class="text-blue-400">🐦</span> Twitter
+                        </a>
+                        <a href="#" class="block px-4 py-3 text-slate-500 rounded-lg font-medium flex items-center gap-2 cursor-not-allowed">
+                            <span class="text-pink-600">📷</span> Instagram (Coming Soon)
+                        </a>
+                        <a href="#" class="block px-4 py-3 text-slate-500 rounded-lg font-medium flex items-center gap-2 cursor-not-allowed">
+                            <span class="text-blue-600">👤</span> Facebook (Coming Soon)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div id="mainView" class="space-y-6 lg:space-y-8">
+            
+            <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-slate-500 mb-6 text-center sm:text-left text-sm sm:text-base">Buat alamat email sementara kustom Anda.</p>
+
+                <!-- Form input dan tombol -->
+                <div class="flex flex-col md:flex-row items-center gap-3 mb-6">
+                    <div class="flex w-full md:w-auto flex-grow bg-slate-50 border-2 border-slate-200 rounded-xl focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-50 transition-all overflow-hidden">
+                        <input type="text" id="customAlias" oninput="saveDraftAlias()" class="px-4 py-3 w-full bg-transparent text-slate-800 text-lg sm:text-xl font-medium focus:outline-none" placeholder="nama-alias" value="">
+                        
+                        <div class="flex items-center px-3 text-slate-400 font-bold bg-slate-100 border-l border-slate-200">@</div>
+                        <select id="domainSelect" class="px-3 py-3 w-full max-w-[150px] sm:max-w-[200px] bg-slate-100 text-slate-700 font-medium focus:outline-none cursor-pointer">
+                            <option value="">Memuat...</option>
+                        </select>
+                    </div>
+
+                    <!-- Tombol grup untuk kondisi ada akun aktif -->
+                    <div id="buttonGroupActive" class="hidden flex gap-2 w-full md:w-auto">
+                        <button onclick="createNewAccount()" class="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-xl transition-all font-medium shadow-sm flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Akun Baru
+                        </button>
+                        <button onclick="deleteAccount()" class="flex-1 md:flex-none bg-red-400 hover:bg-red-500 text-white px-4 py-3 rounded-xl transition-all font-medium shadow-sm flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Hapus Akun
+                        </button>
+                    </div>
+                    <!-- Tombol grup untuk kondisi tidak ada akun aktif -->
+                    <div id="buttonGroupInactive" class="flex gap-2 w-full md:w-auto">
+                        <button onclick="setCustomEmail()" class="flex-1 md:flex-none bg-blue-500 hover:bg-blue-600 text-white px-5 py-3 rounded-xl transition-all font-medium shadow-sm flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Aktifkan
+                        </button>
+                        <button onclick="randomAlias()" class="flex-1 md:flex-none bg-purple-400 hover:bg-purple-500 text-white px-4 py-3 rounded-xl transition-all font-medium shadow-sm flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            Random
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-center sm:text-left w-full sm:w-auto min-w-0">
+                        <span class="text-blue-600/80 text-xs sm:text-sm font-semibold uppercase block mb-1">Email Saat Ini</span>
+                        <span id="activeEmailDisplay" class="font-bold text-slate-800 text-lg sm:text-xl word-wrap-fix block">Menunggu pengaturan...</span>
+                    </div>
+                    <button onclick="copyEmail()" class="w-full sm:w-auto shrink-0 bg-white border border-blue-200 text-blue-700 px-5 py-2.5 rounded-lg hover:bg-blue-600 hover:text-white transition-colors font-medium flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Salin Email
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="border-b border-slate-100 p-4 sm:p-6 bg-slate-50/50 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg sm:text-xl font-bold text-slate-800">Kotak Masuk</h2>
+                        <span id="mailCount" class="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">0</span>
+                    </div>
+                    <button onclick="fetchMessages()" class="text-sm bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 transition flex items-center shadow-sm font-medium">
+                        <svg id="refreshIcon" class="w-4 h-4 mr-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Segarkan
+                    </button>
+                </div>
+
+                <div id="messageList" class="divide-y divide-slate-100">
+                    <div class="p-10 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                        </div>
+                        <p class="text-slate-500 font-medium" id="emptyState">Silakan aktifkan email terlebih dahulu...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="messageDetailView" class="hidden max-w-4xl mx-auto">
+            <button onclick="backToInbox()" class="mb-6 flex items-center text-slate-600 hover:text-blue-600 bg-white border border-slate-200 px-4 py-2.5 rounded-xl shadow-sm transition-all font-semibold group">
+                <svg class="w-5 h-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Kembali ke Inbox
+            </button>
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 sm:p-8 border-b border-slate-100 bg-slate-50/50">
+                    <h2 id="detailSubject" class="text-2xl sm:text-3xl font-bold text-slate-900 mb-6 word-wrap-fix leading-tight">...</h2>
+                    <div class="flex items-start sm:items-center gap-4">
+                        <div id="detailAvatar" class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-inner shrink-0">?</div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-baseline gap-1">
+                                <h3 id="detailFromName" class="font-bold text-slate-800 text-base sm:text-lg truncate">...</h3>
+                                <span id="detailDate" class="text-xs sm:text-sm text-slate-500 font-medium whitespace-nowrap">...</span>
+                            </div>
+                            <p id="detailFromEmail" class="text-sm text-slate-500 truncate">...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-5 sm:p-8 bg-white min-h-[300px]">
+                    <div id="detailBody" class="text-slate-800 word-wrap-fix overflow-x-auto">Memuat isi pesan...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const API_KEY = 'lapannoldua';
+        const DOMAINS_API = `https://citayam.com/api/domains/${API_KEY}`;
+        const MESSAGES_API_BASE = `https://citayam.com/api/messages/`;
+
+        let currentEmail = '';
+        let globalMessages = [];
+        let fetchInterval;
+
+        // Daftar nama untuk random
+        const firstNames = ['john', 'jane', 'mike', 'sarah', 'david', 'lisa', 'alex', 'emma', 'chris', 'anna', 'peter', 'linda', 'kevin', 'nina', 'brian', 'amanda', 'steve', 'laura', 'daniel', 'rachel'];
+        const lastNames = ['smith', 'johnson', 'williams', 'brown', 'jones', 'garcia', 'miller', 'davis', 'rodriguez', 'martinez', 'wilson', 'anderson', 'taylor', 'thomas', 'moore', 'jackson', 'martin', 'lee', 'perez', 'thompson'];
+
+        // Toast notification
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Simpan draft alias ke localStorage
+        function saveDraftAlias() {
+            const currentTypedAlias = document.getElementById('customAlias').value;
+            localStorage.setItem('tm_draft_alias', currentTypedAlias);
+        }
+
+        // Update tampilan tombol dan status input berdasarkan akun aktif
+        function updateUIForAccount() {
+            const groupActive = document.getElementById('buttonGroupActive');
+            const groupInactive = document.getElementById('buttonGroupInactive');
+            const aliasInput = document.getElementById('customAlias');
+            const domainSelect = document.getElementById('domainSelect');
+
+            if (currentEmail) {
+                groupActive.classList.remove('hidden');
+                groupInactive.classList.add('hidden');
+                aliasInput.disabled = true;
+                domainSelect.disabled = true;
+            } else {
+                groupActive.classList.add('hidden');
+                groupInactive.classList.remove('hidden');
+                aliasInput.disabled = false;
+                domainSelect.disabled = false;
+            }
+        }
+
+        // Buat akun baru (reset sesi)
+        function createNewAccount() {
+            // Hapus sesi aktif
+            localStorage.removeItem('tm_active_alias');
+            localStorage.removeItem('tm_active_domain');
+            // Kosongkan input
+            document.getElementById('customAlias').value = '';
+            saveDraftAlias(); // update draft
+            currentEmail = '';
+            document.getElementById('activeEmailDisplay').textContent = 'Menunggu pengaturan...';
+            // Hentikan interval
+            if (fetchInterval) clearInterval(fetchInterval);
+            // Bersihkan daftar pesan
+            document.getElementById('messageList').innerHTML = `<div class="p-10 text-center"><div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4"><svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg></div><p class="text-slate-500 font-medium">Silakan aktifkan email terlebih dahulu...</p></div>`;
+            document.getElementById('mailCount').textContent = '0';
+            updateUIForAccount();
+            showToast('Sesi direset. Silakan buat email baru.', 2000);
+        }
+
+        // Hapus semua data akun saat ini
+        function deleteAccount() {
+            if (!currentEmail) {
+                showToast('Tidak ada akun aktif.', 2000);
+                return;
+            }
+            // Hapus data pesan dari localStorage
+            const storageKey = `tempmail_data_${currentEmail}`;
+            localStorage.removeItem(storageKey);
+            // Hapus sesi
+            localStorage.removeItem('tm_active_alias');
+            localStorage.removeItem('tm_active_domain');
+            // Reset tampilan
+            document.getElementById('customAlias').value = '';
+            saveDraftAlias();
+            currentEmail = '';
+            document.getElementById('activeEmailDisplay').textContent = 'Menunggu pengaturan...';
+            if (fetchInterval) clearInterval(fetchInterval);
+            document.getElementById('messageList').innerHTML = `<div class="p-10 text-center"><div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4"><svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg></div><p class="text-slate-500 font-medium">Silakan aktifkan email terlebih dahulu...</p></div>`;
+            document.getElementById('mailCount').textContent = '0';
+            updateUIForAccount();
+            showToast('Akun dan semua pesan telah dihapus.', 2000);
+        }
+
+        // Generate random alias dengan nama orang + angka
+        function generateRandomAlias() {
+            const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+            const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+            const number = Math.floor(Math.random() * 9000) + 1000; // 4 digit angka
+            // kombinasi: first.last123 atau first_last123
+            const separators = ['.', '_', ''];
+            const sep = separators[Math.floor(Math.random() * separators.length)];
+            return `${firstName}${sep}${lastName}${number}`;
+        }
+
+        // Generate random alias dan langsung aktifkan
+        function randomAlias() {
+            const domain = document.getElementById('domainSelect').value;
+            if (!domain) {
+                showToast('Domain belum siap.', 3000);
+                return;
+            }
+            const randomStr = generateRandomAlias();
+            document.getElementById('customAlias').value = randomStr;
+            saveDraftAlias();
+            setCustomEmail(); // langsung aktifkan
+        }
+
+        // Kembalikan sesi setelah halaman dimuat
+        function restoreSession() {
+            const activeAlias = localStorage.getItem('tm_active_alias');
+            const activeDomain = localStorage.getItem('tm_active_domain');
+            const draftAlias = localStorage.getItem('tm_draft_alias');
+
+            if (activeAlias) {
+                document.getElementById('customAlias').value = activeAlias;
+            } else if (draftAlias) {
+                document.getElementById('customAlias').value = draftAlias;
+            }
+
+            if (activeAlias && activeDomain) {
+                const selectElement = document.getElementById('domainSelect');
+                const domainExists = Array.from(selectElement.options).some(opt => opt.value === activeDomain);
+                
+                if (domainExists) {
+                    selectElement.value = activeDomain;
+                    currentEmail = `${activeAlias}@${activeDomain}`;
+                    document.getElementById('activeEmailDisplay').textContent = currentEmail;
+                    
+                    document.getElementById('messageList').innerHTML = `<div class="p-10 text-center animate-pulse"><p class="text-slate-500 font-medium">Memuat kembali sesi Anda...</p></div>`;
+                    
+                    fetchMessages();
+                    if (fetchInterval) clearInterval(fetchInterval);
+                    fetchInterval = setInterval(fetchMessages, 10000);
+                } else {
+                    if (selectElement.options.length > 1) {
+                        const firstDomain = selectElement.options[1].value;
+                        selectElement.value = firstDomain;
+                        showToast('Domain sebelumnya tidak tersedia, gunakan domain default', 4000);
+                    }
+                }
+            }
+            updateUIForAccount();
+        }
+
+        function getInitials(name) {
+            if (!name || name === 'Pengirim Tidak Diketahui') return '?';
+            return name.charAt(0).toUpperCase();
+        }
+
+        function parseSenderInfo(senderData) {
+            let name = 'Pengirim Tidak Diketahui';
+            let email = '';
+            if (typeof senderData === 'string') {
+                const match = senderData.match(/(.*?)<(.+?)>/);
+                if (match) {
+                    name = match[1].replace(/"/g, '').trim() || match[2].trim();
+                    email = `<${match[2].trim()}>`;
+                } else {
+                    name = senderData;
+                    email = '';
+                }
+            } else if (senderData && typeof senderData === 'object') {
+                name = senderData.name || 'Pengirim Tidak Diketahui';
+                email = senderData.email || '';
+            }
+            return { name, email };
+        }
+
+        function getMessageBody(msg) {
+            if (!msg) return '';
+            let content = msg.html || msg.body || msg.text || msg.content || msg.message || msg.data || msg.htmlBody || msg.textBody;
+            if (typeof content === 'object') content = content.html || content.text || content.content || JSON.stringify(content);
+            if (content) return content;
+            return "<pre class='text-red-500 text-xs bg-red-50 p-4 rounded'>DEBUG:\n" + JSON.stringify(msg, null, 2) + "</pre>";
+        }
+
+        async function fetchDomains() {
+            const selectElement = document.getElementById('domainSelect');
+            selectElement.innerHTML = '<option value="">Menyambungkan...</option>';
+
+            try {
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(DOMAINS_API);
+                let response;
+                
+                try {
+                    response = await fetch(DOMAINS_API); 
+                    if (!response.ok) throw new Error("Direct error");
+                } catch (e) {
+                    response = await fetch(proxyUrl);
+                }
+
+                const data = await response.json();
+                let domains = Array.isArray(data) ? data : (data.domains || data.data || Object.values(data));
+
+                selectElement.innerHTML = ''; 
+
+                if(domains && domains.length > 0) {
+                    domains.forEach(domain => {
+                        const cleanDomain = domain.replace('@', '').trim();
+                        const option = document.createElement('option');
+                        option.value = cleanDomain;
+                        option.textContent = cleanDomain; // tanpa @
+                        selectElement.appendChild(option);
+                    });
+                } else {
+                    throw new Error("Format API kosong");
+                }
+            } catch (error) {
+                console.error('Gagal mengambil domain API:', error);
+                selectElement.innerHTML = '<option value="citayam.com">citayam.com</option>';
+            } finally {
+                restoreSession();
+            }
+        }
+
+        function setCustomEmail() {
+            let alias = document.getElementById('customAlias').value.trim();
+            const domain = document.getElementById('domainSelect').value;
+
+            if (!domain) {
+                showToast('Domain belum siap, silakan tunggu.', 3000);
+                return;
+            }
+
+            if (!alias) alias = Math.random().toString(36).substring(2, 10);
+            alias = alias.replace(/[^a-zA-Z0-9.-]/g, "").toLowerCase();
+            document.getElementById('customAlias').value = alias;
+
+            currentEmail = `${alias}@${domain}`;
+            document.getElementById('activeEmailDisplay').textContent = currentEmail;
+
+            localStorage.setItem('tm_active_alias', alias);
+            localStorage.setItem('tm_active_domain', domain);
+            localStorage.setItem('tm_draft_alias', alias);
+
+            showToast(`Email ${currentEmail} diaktifkan`, 2000);
+
+            document.getElementById('messageList').innerHTML = `<div class="p-10 text-center animate-pulse"><p class="text-slate-500 font-medium">Memeriksa pesan masuk...</p></div>`;
+
+            fetchMessages();
+            clearInterval(fetchInterval);
+            fetchInterval = setInterval(fetchMessages, 10000);
+            
+            updateUIForAccount(); // tombol berubah karena akun aktif
+        }
+
+        async function fetchMessages() {
+            if (!currentEmail) return;
+
+            const btnRefresh = document.getElementById('refreshIcon');
+            if(btnRefresh) btnRefresh.classList.add('animate-spin');
+            
+            const storageKey = `tempmail_data_${currentEmail}`;
+
+            try {
+                const apiUrl = `${MESSAGES_API_BASE}${currentEmail}/${API_KEY}`;
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
+                
+                let response;
+                try {
+                    response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error("Direct error");
+                } catch (e) {
+                    response = await fetch(proxyUrl);
+                }
+
+                const data = await response.json();
+                let apiMessages = data.messages || data.data || data;
+
+                if (Array.isArray(apiMessages) && apiMessages.length > 0) {
+                    // Batasi maksimal 50 pesan terbaru
+                    if (apiMessages.length > 50) {
+                        apiMessages = apiMessages.slice(-50);
+                    }
+                    localStorage.setItem(storageKey, JSON.stringify(apiMessages));
+                    globalMessages = apiMessages;
+                } else {
+                    const saved = localStorage.getItem(storageKey);
+                    globalMessages = saved ? JSON.parse(saved) : [];
+                }
+                renderMessages(globalMessages);
+            } catch (error) {
+                const saved = localStorage.getItem(storageKey);
+                globalMessages = saved ? JSON.parse(saved) : [];
+                renderMessages(globalMessages);
+            } finally {
+                if(btnRefresh) setTimeout(() => btnRefresh.classList.remove('animate-spin'), 500);
+            }
+        }
+
+        function renderMessages(messages) {
+            const messageList = document.getElementById('messageList');
+            document.getElementById('mailCount').textContent = messages.length;
+
+            if (!Array.isArray(messages) || messages.length === 0) {
+                messageList.innerHTML = `
+                    <div class="p-10 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                            <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <p class="text-slate-500 font-medium">Belum ada email masuk.</p>
+                        <p class="text-slate-400 text-sm mt-1">Otomatis menyegarkan setiap 10 detik</p>
+                    </div>`;
+                return;
+            }
+
+            messageList.innerHTML = ''; 
+
+            messages.slice().reverse().forEach((msg, index) => {
+                const originalIndex = messages.length - 1 - index; 
+                const rawSender = msg.from || msg.sender_name || msg.sender;
+                const senderInfo = parseSenderInfo(rawSender);
+                const initial = getInitials(senderInfo.name);
+                
+                // Ambil teks polos untuk preview, batasi 100 karakter
+                let bodyPreview = getMessageBody(msg).replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                if (bodyPreview.includes('DEBUG:')) bodyPreview = 'Klik untuk melihat pesan yang diformat khusus...';
+                if (bodyPreview.length > 100) bodyPreview = bodyPreview.substring(0, 100) + '...';
+
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'p-4 sm:p-5 hover:bg-blue-50/50 cursor-pointer transition-colors group flex gap-4 items-start';
+                msgDiv.onclick = () => openMessageDetail(originalIndex);
+                
+                msgDiv.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold shrink-0 mt-1">
+                        ${initial}
+                    </div>
+                    <div class="min-w-0 flex-grow">
+                        <div class="flex justify-between items-baseline mb-0.5">
+                            <h3 class="font-bold text-slate-800 truncate pr-2 group-hover:text-blue-600 transition-colors">${senderInfo.name}</h3>
+                            <span class="text-xs text-slate-500 whitespace-nowrap">${msg.date || msg.created_at || ''}</span>
+                        </div>
+                        <h4 class="font-semibold text-slate-700 text-sm truncate mb-1 word-wrap-fix">${msg.subject || '(Tanpa Subjek)'}</h4>
+                        <p class="text-slate-500 text-sm truncate">${bodyPreview || '...'}</p>
+                    </div>
+                `;
+                messageList.appendChild(msgDiv);
+            });
+        }
+        
+        function openMessageDetail(index) {
+            const msg = globalMessages[index];
+            if (!msg) return;
+
+            const senderInfo = parseSenderInfo(msg.from || msg.sender_name || msg.sender);
+
+            document.getElementById('detailSubject').textContent = msg.subject || '(Tanpa Subjek)';
+            document.getElementById('detailFromName').textContent = senderInfo.name;
+            document.getElementById('detailFromEmail').textContent = senderInfo.email;
+            document.getElementById('detailDate').textContent = msg.date || msg.created_at || '';
+            document.getElementById('detailAvatar').textContent = getInitials(senderInfo.name);
+            
+            const bodyContent = getMessageBody(msg);
+            
+            if (!/<[a-z][\s\S]*>/i.test(bodyContent) && !bodyContent.includes('DEBUG:')) {
+                document.getElementById('detailBody').innerHTML = `<pre class="word-wrap-fix whitespace-pre-wrap font-inherit text-sm sm:text-base">${bodyContent}</pre>`;
+            } else {
+                // CATATAN: Untuk keamanan, sebaiknya gunakan DOMPurify di sini
+                document.getElementById('detailBody').innerHTML = bodyContent;
+            }
+
+            document.getElementById('mainView').classList.add('hidden');
+            document.getElementById('messageDetailView').classList.remove('hidden');
+
+            window.scrollTo(0, 0); 
+            clearInterval(fetchInterval);
+        }
+
+        function backToInbox() {
+            document.getElementById('messageDetailView').classList.add('hidden');
+            document.getElementById('mainView').classList.remove('hidden');
+
+            window.scrollTo(0, 0);
+            fetchMessages();
+            fetchInterval = setInterval(fetchMessages, 10000);
+        }
+
+        function copyEmail() {
+            if (!currentEmail) {
+                showToast('Aktifkan email terlebih dahulu!', 3000);
+                return;
+            }
+            navigator.clipboard.writeText(currentEmail).then(() => {
+                showToast(`Berhasil disalin: ${currentEmail}`, 2000);
+            }).catch(() => {
+                showToast('Gagal menyalin, coba manual', 3000);
+            });
+        }
+
+        // Toggle menu dropdown
+        const menuButton = document.getElementById('menuButton');
+        const menuDropdown = document.getElementById('menuDropdown');
+
+        menuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('hidden');
+        });
+
+        // Klik di luar menu untuk menutup
+        document.addEventListener('click', (e) => {
+            if (!menuButton.contains(e.target) && !menuDropdown.contains(e.target)) {
+                menuDropdown.classList.add('hidden');
+            }
+        });
+
+        // Bersihkan interval saat halaman ditutup
+        window.addEventListener('beforeunload', function() {
+            if (fetchInterval) clearInterval(fetchInterval);
+        });
+
+        // Mulai
+        fetchDomains();
+    </script>
+</body>
+</html>
